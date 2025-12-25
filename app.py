@@ -152,8 +152,6 @@ def start_loan_journey(selected_customer):
     st.session_state.customer_id = selected_customer
     st.session_state.step = 2
 
-st.button("🚀 Start Loan Journey", on_click=start_loan_journey, args=(customer_id,))
-
 
 def proceed_to_underwriting(loan_amount, tenure):
     st.session_state.loan_amount = loan_amount
@@ -185,7 +183,7 @@ if st.session_state.step == 1:
     """, unsafe_allow_html=True)
 
     customer_id = st.selectbox("Select Customer Profile", customers.keys())
-    st.button("🚀 Start Loan Journey", on_click=lambda: start_loan_journey(customer_id))
+    st.button("🚀 Start Loan Journey", on_click=start_loan_journey, args=(customer_id,))
 
 # ---------------------------------------------------
 # STEP 2: Sales Agent
@@ -263,4 +261,5 @@ elif st.session_state.step == 5:
     )
 
     st.download_button("📄 Download Sanction Letter", data=letter, file_name="sanction_letter.txt")
+
 
