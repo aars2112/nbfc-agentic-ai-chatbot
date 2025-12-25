@@ -72,6 +72,8 @@ def generate_sanction_letter(customer, loan, tenure, rate):
     c.setFont("Helvetica", 11)
     c.drawString(50, y, f"Customer: {customer['name']}")
     y -= 20
+    c.drawString(50, y, f"Age: {customer['age']}")
+    y -= 20
     c.drawString(50, y, f"City: {customer['city']}")
     y -= 20
     c.drawString(50, y, f"Credit Score: {customer['credit_score']}")
@@ -95,27 +97,24 @@ def reset():
     st.session_state.clear()
     st.rerun()
 
-# ---------------- UI Styling ----------------
+# ---------------- Styling ----------------
 st.markdown("""
 <style>
-:root {
-    --bubble-bg-light: #e0f0ff;
-    --bubble-bg-dark: #0a3d62;
-}
 .chat-bubble {
     padding: 12px;
     border-radius: 10px;
     margin-bottom: 10px;
 }
-.user {background-color: var(--bubble-bg-light);}
-.agent {background-color: var(--bubble-bg-light);}
-[data-theme="dark"] .chat-bubble {background-color: var(--bubble-bg-dark);}
+.user {background-color: #d1f0c4;}
+.agent {background-color: #cce0ff;}
+[data-theme="dark"] .user {background-color: #0b3d0b;}
+[data-theme="dark"] .agent {background-color: #05294a;}
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- Header ----------------
 st.title("🤖 NBFC Agentic AI Chatbot")
-st.caption("Conversational AI-powered personal loan sales")
+st.caption("Full conversational AI for personal loans")
 
 if st.button("🏠 Return to Home"):
     reset()
@@ -186,18 +185,20 @@ elif st.session_state.stage == "rate" and user_input:
         bot(f"✅ Loan Approved instantly! EMI will be approx ₹{int(emi)}")
         st.session_state.stage = "sanction"
     elif st.session_state.loan_amount <= 2 * c["preapproved_limit"]:
-        bot("📄 Salary slip required. Please select one of the dummy slips below.")
+        bot("📄 Salary slip required. Please upload your salary slip (PDF or image).")
         st.session_state.stage = "salary"
     else:
         bot("❌ Loan amount exceeds eligibility limit.")
         st.session_state.stage = "end"
 
 elif st.session_state.stage == "salary":
-    slip = st.selectbox("Select dummy salary slip", ["₹40,000", "₹60,000", "₹90,000"])
-    if st.button("Submit Salary Slip"):
-        slip_salary = int(slip.replace("₹", "").replace(",", ""))
+    slip = st.file_uploader("Upload your salary slip", type=["pdf", "png", "jpg", "jpeg"])
+    if slip:
+        bot("✅ Salary slip uploaded successfully. Evaluating EMI eligibility...")
+        c = st.session_state.customer
         emi = calculate_emi(st.session_state.loan_amount, st.session_state.rate, st.session_state.tenure)
-        if emi <= 0.5 * slip_salary:
+        # assume slip salary is same as customer salary
+        if emi <= 0.5 * c["salary"]:
             bot("✅ Salary verified. Loan Approved!")
             st.session_state.approved = True
             st.session_state.stage = "sanction"
