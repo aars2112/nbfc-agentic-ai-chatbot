@@ -151,7 +151,9 @@ ABC NBFC Ltd.
 def start_loan_journey(selected_customer):
     st.session_state.customer_id = selected_customer
     st.session_state.step = 2
-    st.experimental_rerun()
+
+st.button("🚀 Start Loan Journey", on_click=start_loan_journey, args=(customer_id,))
+
 
 def proceed_to_underwriting(loan_amount, tenure):
     st.session_state.loan_amount = loan_amount
@@ -261,3 +263,4 @@ elif st.session_state.step == 5:
     )
 
     st.download_button("📄 Download Sanction Letter", data=letter, file_name="sanction_letter.txt")
+
