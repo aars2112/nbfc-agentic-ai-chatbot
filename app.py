@@ -17,7 +17,6 @@ def reset_application():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.session_state.step = 1
-    st.experimental_rerun()
 
 # ---------------------------------------------------
 # Sidebar Navigation
@@ -36,7 +35,6 @@ with st.sidebar:
 # Detect Theme
 # ---------------------------------------------------
 theme = st.get_option("theme.base")
-
 if theme == "dark":
     bg_main = "#0e1117"
     bubble_bg = "#1f2937"
@@ -152,15 +150,13 @@ def start_loan_journey(selected_customer):
     st.session_state.customer_id = selected_customer
     st.session_state.step = 2
 
-
 def proceed_to_underwriting(loan_amount, tenure):
     st.session_state.loan_amount = loan_amount
     st.session_state.tenure = tenure
     st.session_state.step = 3
-    st.experimental_rerun()
 
 def continue_after_underwriting():
-    st.experimental_rerun()
+    pass  # No action needed; session state already updated
 
 # ---------------------------------------------------
 # Header
@@ -200,7 +196,7 @@ elif st.session_state.step == 2:
 
     loan_amount = st.number_input("💰 Loan Amount (₹)", min_value=50000, step=10000)
     tenure = st.selectbox("📆 Loan Tenure (months)", [12, 24, 36, 48])
-    st.button("🔍 Check Eligibility", on_click=lambda: proceed_to_underwriting(loan_amount, tenure))
+    st.button("🔍 Check Eligibility", on_click=proceed_to_underwriting, args=(loan_amount, tenure))
 
 # ---------------------------------------------------
 # STEP 3: Underwriting
@@ -261,5 +257,3 @@ elif st.session_state.step == 5:
     )
 
     st.download_button("📄 Download Sanction Letter", data=letter, file_name="sanction_letter.txt")
-
-
