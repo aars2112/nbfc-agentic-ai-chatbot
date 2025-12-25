@@ -20,7 +20,7 @@ def reset_application():
     st.experimental_rerun()
 
 # ---------------------------------------------------
-# Sidebar Global Navigation
+# Sidebar Navigation
 # ---------------------------------------------------
 with st.sidebar:
     st.markdown("## 🏦 ABC NBFC")
@@ -33,7 +33,7 @@ with st.sidebar:
     st.caption("Demo MVP for Agentic AI Loan Processing")
 
 # ---------------------------------------------------
-# Detect Theme (Light / Dark)
+# Detect Theme
 # ---------------------------------------------------
 theme = st.get_option("theme.base")
 
@@ -112,19 +112,15 @@ customers = {
 # ---------------------------------------------------
 def underwriting_agent(loan_amount, tenure, customer):
     emi = loan_amount / tenure
-
     if customer["credit_score"] < 700:
         return "REJECTED", "Credit score below 700", emi
-
     if loan_amount <= customer["preapproved_limit"]:
         return "APPROVED", "Approved within pre-approved limit", emi
-
     if loan_amount <= 2 * customer["preapproved_limit"]:
         if emi <= 0.5 * customer["salary"]:
-            return "SALARY_SLIP", "Salary slip required for verification (simulated)", emi
+            return "SALARY_SLIP", "Salary slip verification simulated ✅", emi
         else:
             return "REJECTED", "EMI exceeds 50% of salary", emi
-
     return "REJECTED", "Requested amount too high", emi
 
 # ---------------------------------------------------
@@ -142,7 +138,7 @@ We are pleased to inform you that your Personal Loan has been approved.
 
 Loan Amount: ₹{loan_amount}
 Tenure: {tenure} months
-Monthly EMI: ₹{round(emi, 2)}
+Monthly EMI: ₹{round(emi,2)}
 City: {customer['city']}
 
 Regards,
@@ -150,7 +146,7 @@ ABC NBFC Ltd.
 """
 
 # ---------------------------------------------------
-# Functions to handle steps
+# Helper functions for state updates
 # ---------------------------------------------------
 def start_loan_journey(selected_customer):
     st.session_state.customer_id = selected_customer
@@ -187,9 +183,7 @@ if st.session_state.step == 1:
     """, unsafe_allow_html=True)
 
     customer_id = st.selectbox("Select Customer Profile", customers.keys())
-
-    if st.button("🚀 Start Loan Journey", on_click=lambda: start_loan_journey(customer_id)):
-        pass
+    st.button("🚀 Start Loan Journey", on_click=lambda: start_loan_journey(customer_id))
 
 # ---------------------------------------------------
 # STEP 2: Sales Agent
@@ -206,9 +200,7 @@ elif st.session_state.step == 2:
 
     loan_amount = st.number_input("💰 Loan Amount (₹)", min_value=50000, step=10000)
     tenure = st.selectbox("📆 Loan Tenure (months)", [12, 24, 36, 48])
-
-    if st.button("🔍 Check Eligibility", on_click=lambda: proceed_to_underwriting(loan_amount, tenure)):
-        pass
+    st.button("🔍 Check Eligibility", on_click=lambda: proceed_to_underwriting(loan_amount, tenure))
 
 # ---------------------------------------------------
 # STEP 3: Underwriting
@@ -233,18 +225,18 @@ elif st.session_state.step == 3:
         st.markdown(f"<div class='success-box'>✅ Loan Approved Instantly!</div>", unsafe_allow_html=True)
         st.session_state.emi = emi
         st.session_state.step = 5
+        st.button("Continue ➡️", on_click=continue_after_underwriting)
 
     elif status == "SALARY_SLIP":
         st.markdown(f"<div class='warning-box'>📄 {reason}</div>", unsafe_allow_html=True)
         st.markdown("Simulating salary slip verification automatically ✅")
         st.session_state.emi = emi
         st.session_state.step = 5
+        st.button("Continue ➡️", on_click=continue_after_underwriting)
 
     else:
         st.markdown(f"<div class='reject-box'>❌ Loan Rejected: {reason}</div>", unsafe_allow_html=True)
         st.session_state.step = 4
-
-    if st.session_state.step in [4, 5]:
         st.button("Continue ➡️", on_click=continue_after_underwriting)
 
 # ---------------------------------------------------
