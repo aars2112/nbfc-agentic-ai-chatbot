@@ -1,273 +1,251 @@
 import streamlit as st
-from datetime import date
+from fpdf import FPDF
+import math
 
-# ---------------------------------------------------
-# Page Config
-# ---------------------------------------------------
+# -------------------------------
+# Page Configuration
+# -------------------------------
 st.set_page_config(
-    page_title="ABC NBFC | AI Loan Assistant",
+    page_title="NBFC Agentic AI Loan Assistant",
     page_icon="💳",
     layout="centered"
 )
 
-# ---------------------------------------------------
-# Utility: Reset App
-# ---------------------------------------------------
-def reset_application():
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.session_state.step = 1
-
-# ---------------------------------------------------
-# Sidebar Global Navigation
-# ---------------------------------------------------
-with st.sidebar:
-    st.markdown("## 🏦 ABC NBFC")
-    st.caption("AI Loan Assistant")
-
-    if st.button("🏠 Return to Home"):
-        reset_application()
-        st.rerun()
-
-    st.markdown("---")
-    st.caption("Demo MVP for Agentic AI Loan Processing")
-
-# ---------------------------------------------------
-# Detect Theme (Light / Dark)
-# ---------------------------------------------------
-theme = st.get_option("theme.base")
-
-if theme == "dark":
-    bg_main = "#0e1117"
-    bubble_bg = "#1f2937"
-    bubble_border = "#3b82f6"
-    text_color = "#f9fafb"
-    success_bg = "#064e3b"
-    warning_bg = "#78350f"
-    reject_bg = "#7f1d1d"
-else:
-    bg_main = "#f7f9fc"
-    bubble_bg = "#e8f0fe"
-    bubble_border = "#1a73e8"
-    text_color = "#111827"
-    success_bg = "#e6f4ea"
-    warning_bg = "#fff4e5"
-    reject_bg = "#fdecea"
-
-# ---------------------------------------------------
-# Dynamic CSS
-# ---------------------------------------------------
-st.markdown(f"""
+# -------------------------------
+# Styling (Light & Dark Mode Safe)
+# -------------------------------
+st.markdown("""
 <style>
-.main {{
-    background-color: {bg_main};
-}}
-.chat-bubble {{
-    padding: 14px;
+.user-msg {
+    background-color: rgba(0, 123, 255, 0.15);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+.bot-msg {
+    background-color: rgba(40, 167, 69, 0.15);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+.card {
+    padding: 15px;
     border-radius: 12px;
-    margin-bottom: 10px;
-    color: {text_color};
-}}
-.assistant {{
-    background-color: {bubble_bg};
-    border-left: 4px solid {bubble_border};
-}}
-.success-box {{
-    background-color: {success_bg};
-    padding: 15px;
-    border-radius: 10px;
-}}
-.warning-box {{
-    background-color: {warning_bg};
-    padding: 15px;
-    border-radius: 10px;
-}}
-.reject-box {{
-    background-color: {reject_bg};
-    padding: 15px;
-    border-radius: 10px;
-}}
-.metric-box {{
-    background-color: rgba(255,255,255,0.08);
-    padding: 12px;
-    border-radius: 10px;
-    text-align: center;
-}}
+    background-color: rgba(0,0,0,0.05);
+    margin-bottom: 15px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------
-# Synthetic Customer Data
-# ---------------------------------------------------
-customers = {
-    "C001": {"name": "Rahul Verma", "city": "Bengaluru", "salary": 65000, "credit_score": 760, "preapproved_limit": 300000},
-    "C002": {"name": "Ananya Sharma", "city": "Delhi", "salary": 85000, "credit_score": 810, "preapproved_limit": 500000},
-    "C003": {"name": "Mohit Gupta", "city": "Jaipur", "salary": 45000, "credit_score": 690, "preapproved_limit": 200000},
-    "C004": {"name": "Sneha Iyer", "city": "Chennai", "salary": 72000, "credit_score": 735, "preapproved_limit": 250000},
-    "C005": {"name": "Arjun Mehta", "city": "Mumbai", "salary": 120000, "credit_score": 840, "preapproved_limit": 700000}
+# -------------------------------
+# Synthetic Customer Data (5)
+# -------------------------------
+CUSTOMERS = {
+    "Aarav Sharma": {
+        "age": 29,
+        "city": "Bengaluru",
+        "credit_score": 780,
+        "preapproved_limit": 500000
+    },
+    "Neha Gupta": {
+        "age": 34,
+        "city": "Delhi",
+        "credit_score": 720,
+        "preapproved_limit": 300000
+    },
+    "Rohit Mehta": {
+        "age": 41,
+        "city": "Mumbai",
+        "credit_score": 680,
+        "preapproved_limit": 400000
+    },
+    "Pooja Verma": {
+        "age": 27,
+        "city": "Pune",
+        "credit_score": 750,
+        "preapproved_limit": 250000
+    },
+    "Ankit Jain": {
+        "age": 38,
+        "city": "Jaipur",
+        "credit_score": 705,
+        "preapproved_limit": 350000
+    }
 }
 
-# ---------------------------------------------------
-# Underwriting Agent
-# ---------------------------------------------------
-def underwriting_agent(loan_amount, tenure, customer):
-    emi = loan_amount / tenure
+# -------------------------------
+# Helper Functions
+# -------------------------------
+def calculate_emi(principal, annual_rate, tenure_months):
+    monthly_rate = annual_rate / (12 * 100)
+    emi = principal * monthly_rate * (1 + monthly_rate) ** tenure_months / ((1 + monthly_rate) ** tenure_months - 1)
+    return round(emi, 2)
 
-    if customer["credit_score"] < 700:
-        return "REJECTED", "Credit score below 700", emi
+def generate_sanction_letter(name, amount, tenure, emi):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
 
-    if loan_amount <= customer["preapproved_limit"]:
-        return "APPROVED", "Approved within pre-approved limit", emi
+    pdf.cell(0, 10, "NBFC Personal Loan Sanction Letter", ln=True)
+    pdf.ln(10)
 
-    if loan_amount <= 2 * customer["preapproved_limit"]:
-        if emi <= 0.5 * customer["salary"]:
-            return "SALARY_SLIP", "Salary slip required for verification", emi
-        else:
-            return "REJECTED", "EMI exceeds 50% of salary", emi
+    pdf.multi_cell(0, 8, f"""
+Dear {name},
 
-    return "REJECTED", "Requested amount too high", emi
+We are pleased to inform you that your personal loan has been approved.
 
-# ---------------------------------------------------
-# Sanction Letter Generator
-# ---------------------------------------------------
-def generate_sanction_letter(customer, loan_amount, tenure, emi):
-    return f"""
-PERSONAL LOAN SANCTION LETTER
-
-Date: {date.today()}
-
-Dear {customer['name']},
-
-We are pleased to inform you that your Personal Loan has been approved.
-
-Loan Amount: ₹{loan_amount}
+Loan Amount: ₹{amount}
 Tenure: {tenure} months
-Monthly EMI: ₹{round(emi, 2)}
-City: {customer['city']}
+Monthly EMI: ₹{emi}
+
+This sanction is subject to standard NBFC terms and conditions.
 
 Regards,
-ABC NBFC Ltd.
-"""
+NBFC Digital Lending Team
+""")
 
-# ---------------------------------------------------
+    file_name = f"{name.replace(' ', '_')}_Sanction_Letter.pdf"
+    pdf.output(file_name)
+    return file_name
+
+# -------------------------------
+# Session State Initialization
+# -------------------------------
+if "stage" not in st.session_state:
+    st.session_state.stage = "home"
+
+# -------------------------------
 # Header
-# ---------------------------------------------------
-st.title("🤖 ABC NBFC AI Loan Assistant")
-st.caption("Fast • Paperless • Human-like Loan Experience")
+# -------------------------------
+st.title("💳 NBFC Agentic AI Loan Assistant")
+st.caption("Human-like conversational personal loan journey")
 
-if "step" not in st.session_state:
-    st.session_state.step = 1
+# -------------------------------
+# Global Home Button
+# -------------------------------
+if st.button("🏠 Return to Home"):
+    st.session_state.clear()
+    st.session_state.stage = "home"
+    st.experimental_rerun()
 
-# ---------------------------------------------------
-# STEP 1: Welcome
-# ---------------------------------------------------
-if st.session_state.step == 1:
-    st.markdown(f"""
-    <div class="chat-bubble assistant">
-        👋 Hi! I’m your digital loan assistant.<br><br>
-        I’ll help you check eligibility and get a personal loan in minutes.
-    </div>
-    """, unsafe_allow_html=True)
+# -------------------------------
+# HOME
+# -------------------------------
+if st.session_state.stage == "home":
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Start a New Loan Journey")
 
-    customer_id = st.selectbox("Select Customer Profile", customers.keys())
+    customer = st.selectbox("Select Customer (Synthetic Data)", list(CUSTOMERS.keys()))
 
-    if st.button("🚀 Start Loan Journey"):
-        st.session_state.customer_id = customer_id
-        st.session_state.step = 2
-        st.rerun()
+    if st.button("Start Chat"):
+        st.session_state.customer = customer
+        st.session_state.stage = "sales"
 
-# ---------------------------------------------------
-# STEP 2: Sales Agent
-# ---------------------------------------------------
-elif st.session_state.step == 2:
-    customer = customers[st.session_state.customer_id]
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="chat-bubble assistant">
-        Hi <b>{customer['name']}</b> from {customer['city']} 😊<br><br>
-        Tell me how much loan you need and your preferred tenure.
-    </div>
-    """, unsafe_allow_html=True)
+# -------------------------------
+# SALES AGENT
+# -------------------------------
+elif st.session_state.stage == "sales":
+    st.markdown('<div class="bot-msg">Hello! I’m your digital loan assistant. Let’s get you the best personal loan.</div>', unsafe_allow_html=True)
 
-    loan_amount = st.number_input("💰 Loan Amount (₹)", min_value=50000, step=10000)
-    tenure = st.selectbox("📆 Loan Tenure (months)", [12, 24, 36, 48])
+    loan_amount = st.number_input("Desired Loan Amount (₹)", min_value=50000, step=50000)
+    tenure = st.selectbox("Tenure (months)", [12, 24, 36, 48, 60])
+    interest_rate = 14.0
 
-    if st.button("🔍 Check Eligibility"):
+    if st.button("Proceed to Verification"):
         st.session_state.loan_amount = loan_amount
         st.session_state.tenure = tenure
-        st.session_state.step = 3
-        st.rerun()
+        st.session_state.emi = calculate_emi(loan_amount, interest_rate, tenure)
+        st.session_state.stage = "verification"
 
-# ---------------------------------------------------
-# STEP 3: Underwriting
-# ---------------------------------------------------
-elif st.session_state.step == 3:
-    customer = customers[st.session_state.customer_id]
+# -------------------------------
+# VERIFICATION AGENT
+# -------------------------------
+elif st.session_state.stage == "verification":
+    customer = CUSTOMERS[st.session_state.customer]
 
-    st.markdown("""
-    <div class="chat-bubble assistant">
-        🔍 Verifying your profile and checking eligibility...
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="bot-msg">Verifying your KYC details from our CRM system...</div>', unsafe_allow_html=True)
 
-    status, reason, emi = underwriting_agent(
-        st.session_state.loan_amount,
-        st.session_state.tenure,
-        customer
-    )
+    st.success(f"""
+KYC Verified ✅  
+Name: {st.session_state.customer}  
+Age: {customer['age']}  
+City: {customer['city']}
+""")
 
-    col1, col2, col3 = st.columns(3)
-    col1.markdown(f"<div class='metric-box'><b>Credit Score</b><br>{customer['credit_score']}</div>", unsafe_allow_html=True)
-    col2.markdown(f"<div class='metric-box'><b>Pre-approved</b><br>₹{customer['preapproved_limit']}</div>", unsafe_allow_html=True)
-    col3.markdown(f"<div class='metric-box'><b>EMI</b><br>₹{round(emi,2)}</div>", unsafe_allow_html=True)
+    if st.button("Proceed to Underwriting"):
+        st.session_state.stage = "underwriting"
 
-    if status == "APPROVED":
-        st.markdown(f"<div class='success-box'>✅ Loan Approved Instantly!</div>", unsafe_allow_html=True)
-        st.session_state.emi = emi
-        st.session_state.step = 5
+# -------------------------------
+# UNDERWRITING AGENT
+# -------------------------------
+elif st.session_state.stage == "underwriting":
+    customer = CUSTOMERS[st.session_state.customer]
 
-    elif status == "SALARY_SLIP":
-        st.markdown(f"<div class='warning-box'>📄 {reason}</div>", unsafe_allow_html=True)
-        uploaded = st.file_uploader("Upload Salary Slip (dummy)", type=["pdf", "jpg"])
-        if uploaded:
-            st.session_state.emi = emi
-            st.session_state.step = 5
+    loan_amount = st.session_state.loan_amount
+    emi = st.session_state.emi
+    credit_score = customer["credit_score"]
+    limit = customer["preapproved_limit"]
 
+    st.markdown('<div class="bot-msg">Evaluating credit profile and eligibility...</div>', unsafe_allow_html=True)
+
+    st.info(f"Credit Score: {credit_score}")
+    st.info(f"Pre-approved Limit: ₹{limit}")
+    st.info(f"Calculated EMI: ₹{emi}")
+
+    # Rejection conditions
+    if credit_score < 700 or loan_amount > 2 * limit:
+        st.error("❌ Loan Rejected due to credit score or eligibility limits.")
+        st.session_state.stage = "end"
+
+    # Salary verification required
+    elif loan_amount > limit:
+        st.warning("Income verification required to proceed.")
+
+        salary = st.selectbox(
+            "Select your monthly salary (simulated income verification)",
+            [30000, 50000, 80000, 120000],
+            help="For demo purposes, income is verified digitally"
+        )
+
+        if st.button("Verify Income"):
+            if emi <= 0.5 * salary:
+                st.success("Income verified successfully ✅")
+                st.session_state.salary = salary
+                st.session_state.stage = "sanction"
+            else:
+                st.error("❌ Loan Rejected: EMI exceeds 50% of monthly salary.")
+                st.session_state.stage = "end"
+
+    # Instant approval
     else:
-        st.markdown(f"<div class='reject-box'>❌ Loan Rejected: {reason}</div>", unsafe_allow_html=True)
-        st.session_state.step = 4
+        st.success("Eligible for instant approval 🎉")
+        st.session_state.stage = "sanction"
 
-    if st.session_state.step in [4, 5]:
-        st.button("Continue ➡️", on_click=lambda: st.rerun())
-
-# ---------------------------------------------------
-# STEP 4: Rejection
-# ---------------------------------------------------
-elif st.session_state.step == 4:
-    st.markdown("""
-    <div class="chat-bubble assistant">
-        Thank you for your interest. Unfortunately, we can’t proceed right now.
-    </div>
-    """, unsafe_allow_html=True)
-
-# ---------------------------------------------------
-# STEP 5: Sanction Letter
-# ---------------------------------------------------
-elif st.session_state.step == 5:
-    customer = customers[st.session_state.customer_id]
-
-    st.markdown("""
-    <div class="chat-bubble assistant">
-        🎉 Congratulations! Your loan has been approved.
-        Please download your sanction letter below.
-    </div>
-    """, unsafe_allow_html=True)
-
-    letter = generate_sanction_letter(
-        customer,
+# -------------------------------
+# SANCTION LETTER
+# -------------------------------
+elif st.session_state.stage == "sanction":
+    file_path = generate_sanction_letter(
+        st.session_state.customer,
         st.session_state.loan_amount,
         st.session_state.tenure,
         st.session_state.emi
     )
 
-    st.download_button("📄 Download Sanction Letter", data=letter, file_name="sanction_letter.txt")
+    st.success("🎉 Loan Approved!")
+    st.download_button(
+        "📄 Download Sanction Letter",
+        open(file_path, "rb"),
+        file_name=file_path
+    )
+
+    st.session_state.stage = "end"
+
+# -------------------------------
+# END
+# -------------------------------
+elif st.session_state.stage == "end":
+    st.info("Thank you for using NBFC Agentic AI Loan Assistant.")
+    st.caption("You may return to Home to start a new journey.")
