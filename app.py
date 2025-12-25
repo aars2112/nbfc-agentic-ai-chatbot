@@ -17,6 +17,7 @@ def reset_application():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.session_state.step = 1
+    st.experimental_rerun()
 
 # ---------------------------------------------------
 # Sidebar Global Navigation
@@ -27,7 +28,6 @@ with st.sidebar:
 
     if st.button("🏠 Return to Home"):
         reset_application()
-        st.rerun()
 
     st.markdown("---")
     st.caption("Demo MVP for Agentic AI Loan Processing")
@@ -150,6 +150,23 @@ ABC NBFC Ltd.
 """
 
 # ---------------------------------------------------
+# Functions to handle steps
+# ---------------------------------------------------
+def start_loan_journey(selected_customer):
+    st.session_state.customer_id = selected_customer
+    st.session_state.step = 2
+    st.experimental_rerun()
+
+def proceed_to_underwriting(loan_amount, tenure):
+    st.session_state.loan_amount = loan_amount
+    st.session_state.tenure = tenure
+    st.session_state.step = 3
+    st.experimental_rerun()
+
+def continue_after_underwriting():
+    st.experimental_rerun()
+
+# ---------------------------------------------------
 # Header
 # ---------------------------------------------------
 st.title("🤖 ABC NBFC AI Loan Assistant")
@@ -171,7 +188,84 @@ if st.session_state.step == 1:
 
     customer_id = st.selectbox("Select Customer Profile", customers.keys())
 
-    if st.button("🚀 Start Loan Journey"):
-        st.session_state.customer_id = customer_id
-        st.session_state.step = 2
-        st.reru
+    if st.button("🚀 Start Loan Journey", on_click=lambda: start_loan_journey(customer_id)):
+        pass
+
+# ---------------------------------------------------
+# STEP 2: Sales Agent
+# ---------------------------------------------------
+elif st.session_state.step == 2:
+    customer = customers[st.session_state.customer_id]
+
+    st.markdown(f"""
+    <div class="chat-bubble assistant">
+        Hi <b>{customer['name']}</b> from {customer['city']} 😊<br><br>
+        Tell me how much loan you need and your preferred tenure.
+    </div>
+    """, unsafe_allow_html=True)
+
+    loan_amount = st.number_input("💰 Loan Amount (₹)", min_value=50000, step=10000)
+    tenure = st.selectbox("📆 Loan Tenure (months)", [12, 24, 36, 48])
+
+    if st.button("🔍 Check Eligibility", on_click=lambda: proceed_to_underwriting(loan_amount, tenure)):
+        pass
+
+# ---------------------------------------------------
+# STEP 3: Underwriting
+# ---------------------------------------------------
+elif st.session_state.step == 3:
+    customer = customers[st.session_state.customer_id]
+
+    st.markdown("""<div class="chat-bubble assistant">🔍 Verifying your profile and checking eligibility...</div>""", unsafe_allow_html=True)
+
+    status, reason, emi = underwriting_agent(
+        st.session_state.loan_amount,
+        st.session_state.tenure,
+        customer
+    )
+
+    col1, col2, col3 = st.columns(3)
+    col1.markdown(f"<div class='metric-box'><b>Credit Score</b><br>{customer['credit_score']}</div>", unsafe_allow_html=True)
+    col2.markdown(f"<div class='metric-box'><b>Pre-approved</b><br>₹{customer['preapproved_limit']}</div>", unsafe_allow_html=True)
+    col3.markdown(f"<div class='metric-box'><b>EMI</b><br>₹{round(emi,2)}</div>", unsafe_allow_html=True)
+
+    if status == "APPROVED":
+        st.markdown(f"<div class='success-box'>✅ Loan Approved Instantly!</div>", unsafe_allow_html=True)
+        st.session_state.emi = emi
+        st.session_state.step = 5
+
+    elif status == "SALARY_SLIP":
+        st.markdown(f"<div class='warning-box'>📄 {reason}</div>", unsafe_allow_html=True)
+        st.markdown("Simulating salary slip verification automatically ✅")
+        st.session_state.emi = emi
+        st.session_state.step = 5
+
+    else:
+        st.markdown(f"<div class='reject-box'>❌ Loan Rejected: {reason}</div>", unsafe_allow_html=True)
+        st.session_state.step = 4
+
+    if st.session_state.step in [4, 5]:
+        st.button("Continue ➡️", on_click=continue_after_underwriting)
+
+# ---------------------------------------------------
+# STEP 4: Rejection
+# ---------------------------------------------------
+elif st.session_state.step == 4:
+    st.markdown("""<div class="chat-bubble assistant">Thank you for your interest. Unfortunately, we can’t proceed right now.</div>""", unsafe_allow_html=True)
+
+# ---------------------------------------------------
+# STEP 5: Sanction Letter
+# ---------------------------------------------------
+elif st.session_state.step == 5:
+    customer = customers[st.session_state.customer_id]
+
+    st.markdown("""<div class="chat-bubble assistant">🎉 Congratulations! Your loan has been approved. Please download your sanction letter below.</div>""", unsafe_allow_html=True)
+
+    letter = generate_sanction_letter(
+        customer,
+        st.session_state.loan_amount,
+        st.session_state.tenure,
+        st.session_state.emi
+    )
+
+    st.download_button("📄 Download Sanction Letter", data=letter, file_name="sanction_letter.txt")
