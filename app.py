@@ -13,36 +13,41 @@ st.set_page_config(
 
 # ---------------- Synthetic Customers ----------------
 CUSTOMERS = {
-    "Rahul Sharma": {
+    "CUST001": {
         "name": "Rahul Sharma",
+        "age": 30,
         "city": "Bengaluru",
         "credit_score": 780,
         "preapproved_limit": 300000,
         "salary": 60000
     },
-    "Ananya Verma": {
+    "CUST002": {
         "name": "Ananya Verma",
+        "age": 28,
         "city": "Delhi",
         "credit_score": 720,
         "preapproved_limit": 200000,
         "salary": 50000
     },
-    "Karan Mehta": {
+    "CUST003": {
         "name": "Karan Mehta",
+        "age": 35,
         "city": "Mumbai",
         "credit_score": 690,
         "preapproved_limit": 250000,
         "salary": 70000
     },
-    "Sneha Iyer": {
+    "CUST004": {
         "name": "Sneha Iyer",
+        "age": 32,
         "city": "Chennai",
         "credit_score": 810,
         "preapproved_limit": 400000,
         "salary": 90000
     },
-    "Amit Singh": {
+    "CUST005": {
         "name": "Amit Singh",
+        "age": 40,
         "city": "Pune",
         "credit_score": 750,
         "preapproved_limit": 350000,
@@ -90,8 +95,26 @@ def reset():
     st.session_state.clear()
     st.rerun()
 
-# ---------------- UI Header ----------------
-st.title("🤖 NBFC Agentic AI Loan Assistant")
+# ---------------- UI Styling ----------------
+st.markdown("""
+<style>
+:root {
+    --bubble-bg-light: #e0f0ff;
+    --bubble-bg-dark: #0a3d62;
+}
+.chat-bubble {
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+.user {background-color: var(--bubble-bg-light);}
+.agent {background-color: var(--bubble-bg-light);}
+[data-theme="dark"] .chat-bubble {background-color: var(--bubble-bg-dark);}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- Header ----------------
+st.title("🤖 NBFC Agentic AI Chatbot")
 st.caption("Conversational AI-powered personal loan sales")
 
 if st.button("🏠 Return to Home"):
@@ -108,8 +131,7 @@ if "messages" not in st.session_state:
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-# ---------------- Conversation Engine ----------------
-user_input = st.chat_input("Type your response...")
+user_input = st.chat_input("Type your response here...")
 
 def bot(text):
     st.session_state.messages.append({"role": "assistant", "content": text})
@@ -119,74 +141,68 @@ def user(text):
     st.session_state.messages.append({"role": "user", "content": text})
     st.chat_message("user").write(text)
 
-# ---------------- Chat Flow ----------------
+# ---------------- Conversation Flow ----------------
 if st.session_state.stage == "start":
-    bot("👋 Hello! I’m your digital loan assistant. Let’s get you a personal loan.")
-    bot("Please select a customer profile to continue.")
+    bot("👋 Hello! I’m your digital loan assistant. Let's start your personal loan journey.")
+    bot("Please select a customer ID from the drop-down to begin.")
     st.session_state.stage = "select_customer"
 
 elif st.session_state.stage == "select_customer":
-    name = st.selectbox("Select customer", list(CUSTOMERS.keys()))
+    customer_id = st.selectbox("Select Customer ID", list(CUSTOMERS.keys()))
     if st.button("Confirm"):
-        st.session_state.customer = CUSTOMERS[name]
-        bot(f"Great! Hi {name} 👋")
-        bot("How much loan amount are you looking for?")
+        st.session_state.customer = CUSTOMERS[customer_id]
+        bot(f"Hi {CUSTOMERS[customer_id]['name']} from {CUSTOMERS[customer_id]['city']}!")
+        bot(f"Your credit score is {CUSTOMERS[customer_id]['credit_score']} and pre-approved limit is ₹{CUSTOMERS[customer_id]['preapproved_limit']}.")
+        bot("How much loan amount do you want?")
         st.session_state.stage = "loan_amount"
 
 elif st.session_state.stage == "loan_amount" and user_input:
     user(user_input)
     st.session_state.loan_amount = int(user_input)
-    bot("Got it. What tenure do you prefer? (in months)")
+    bot("Great! What tenure in months do you prefer? (12, 24, 36, 48, 60)")
     st.session_state.stage = "tenure"
 
 elif st.session_state.stage == "tenure" and user_input:
     user(user_input)
     st.session_state.tenure = int(user_input)
-    bot("What interest rate are you comfortable with?")
+    bot("What interest rate (%) are you comfortable with?")
     st.session_state.stage = "rate"
 
 elif st.session_state.stage == "rate" and user_input:
     user(user_input)
     st.session_state.rate = float(user_input)
 
-    bot("🔍 **Verification Agent:** KYC verified successfully.")
-    bot("📊 **Underwriting Agent:** Evaluating eligibility...")
+    bot("🔍 **Verification Agent:** KYC verified successfully!")
+    bot("📊 **Underwriting Agent:** Checking eligibility...")
 
     c = st.session_state.customer
     emi = calculate_emi(st.session_state.loan_amount, st.session_state.rate, st.session_state.tenure)
 
     if c["credit_score"] < 700:
-        bot("❌ Loan rejected due to low credit score.")
+        bot("❌ Loan Rejected: Credit score below 700.")
         st.session_state.stage = "end"
-
     elif st.session_state.loan_amount <= c["preapproved_limit"]:
         st.session_state.approved = True
-        bot("✅ Loan approved instantly!")
+        bot(f"✅ Loan Approved instantly! EMI will be approx ₹{int(emi)}")
         st.session_state.stage = "sanction"
-
     elif st.session_state.loan_amount <= 2 * c["preapproved_limit"]:
-        bot("📄 Salary slip required. Please select one.")
+        bot("📄 Salary slip required. Please select one of the dummy slips below.")
         st.session_state.stage = "salary"
-
     else:
-        bot("❌ Loan amount exceeds eligibility.")
+        bot("❌ Loan amount exceeds eligibility limit.")
         st.session_state.stage = "end"
 
 elif st.session_state.stage == "salary":
-    slip = st.selectbox(
-        "Select dummy salary slip",
-        ["₹40,000", "₹60,000", "₹90,000"]
-    )
+    slip = st.selectbox("Select dummy salary slip", ["₹40,000", "₹60,000", "₹90,000"])
     if st.button("Submit Salary Slip"):
         slip_salary = int(slip.replace("₹", "").replace(",", ""))
         emi = calculate_emi(st.session_state.loan_amount, st.session_state.rate, st.session_state.tenure)
-
         if emi <= 0.5 * slip_salary:
-            bot("✅ Salary verified. Loan approved!")
+            bot("✅ Salary verified. Loan Approved!")
             st.session_state.approved = True
             st.session_state.stage = "sanction"
         else:
-            bot("❌ EMI exceeds 50% of salary. Loan rejected.")
+            bot("❌ EMI exceeds 50% of salary. Loan Rejected.")
             st.session_state.stage = "end"
 
 elif st.session_state.stage == "sanction":
@@ -197,7 +213,6 @@ elif st.session_state.stage == "sanction":
         st.session_state.tenure,
         st.session_state.rate
     )
-
     st.download_button(
         "⬇ Download Sanction Letter",
         pdf,
@@ -208,9 +223,6 @@ elif st.session_state.stage == "sanction":
     st.session_state.stage = "end"
 
 elif st.session_state.stage == "end":
-    bot("Would you like to start a new loan journey?")
+    bot("Do you want to start a new loan journey?")
     if st.button("🔁 Start Again"):
         reset()
-
-
-
