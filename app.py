@@ -66,7 +66,7 @@ def generate_sanction_letter(customer, loan, tenure, rate):
     y = 800
 
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, "Personal Loan Sanction Letter")
+    c.drawString(50, y, "🏦 Personal Loan Sanction Letter")
     y -= 40
 
     c.setFont("Helvetica", 11)
@@ -114,7 +114,7 @@ st.markdown("""
 
 # ---------------- Header ----------------
 st.title("🤖 NBFC Agentic AI Chatbot")
-st.caption("Full conversational AI for personal loans")
+st.caption("Human-like conversational AI for personal loans")
 
 if st.button("🏠 Return to Home"):
     reset()
@@ -122,92 +122,93 @@ if st.button("🏠 Return to Home"):
 st.divider()
 
 # ---------------- Session Init ----------------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-    st.session_state.stage = "start"
-
-# ---------------- Display Chat ----------------
-for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).write(msg["content"])
-
-user_input = st.chat_input("Type your response here...")
-
-def bot(text):
-    st.session_state.messages.append({"role": "assistant", "content": text})
-    st.chat_message("assistant").write(text)
-
-def user(text):
-    st.session_state.messages.append({"role": "user", "content": text})
-    st.chat_message("user").write(text)
+if "stage" not in st.session_state:
+    st.session_state.stage = "select_customer"
+if "customer" not in st.session_state:
+    st.session_state.customer = None
+if "loan_amount" not in st.session_state:
+    st.session_state.loan_amount = 0
+if "tenure" not in st.session_state:
+    st.session_state.tenure = 0
+if "rate" not in st.session_state:
+    st.session_state.rate = 0
+if "approved" not in st.session_state:
+    st.session_state.approved = False
 
 # ---------------- Conversation Flow ----------------
-if st.session_state.stage == "start":
-    bot("👋 Hello! I’m your digital loan assistant. Let's start your personal loan journey.")
-    bot("Please select a customer ID from the drop-down to begin.")
-    st.session_state.stage = "select_customer"
-
-elif st.session_state.stage == "select_customer":
-    customer_id = st.selectbox("Select Customer ID", list(CUSTOMERS.keys()))
+# Step 1: Select Customer
+if st.session_state.stage == "select_customer":
+    customer_id = st.selectbox("Select Customer ID 🆔", list(CUSTOMERS.keys()))
     if st.button("Confirm"):
         st.session_state.customer = CUSTOMERS[customer_id]
-        bot(f"Hi {CUSTOMERS[customer_id]['name']} from {CUSTOMERS[customer_id]['city']}!")
-        bot(f"Your credit score is {CUSTOMERS[customer_id]['credit_score']} and pre-approved limit is ₹{CUSTOMERS[customer_id]['preapproved_limit']}.")
-        bot("How much loan amount do you want?")
         st.session_state.stage = "loan_amount"
 
-elif st.session_state.stage == "loan_amount" and user_input:
-    user(user_input)
-    st.session_state.loan_amount = int(user_input)
-    bot("Great! What tenure in months do you prefer? (12, 24, 36, 48, 60)")
-    st.session_state.stage = "tenure"
-
-elif st.session_state.stage == "tenure" and user_input:
-    user(user_input)
-    st.session_state.tenure = int(user_input)
-    bot("What interest rate (%) are you comfortable with?")
-    st.session_state.stage = "rate"
-
-elif st.session_state.stage == "rate" and user_input:
-    user(user_input)
-    st.session_state.rate = float(user_input)
-
-    bot("🔍 **Verification Agent:** KYC verified successfully!")
-    bot("📊 **Underwriting Agent:** Checking eligibility...")
-
+# Step 2: Display Customer Info and Ask Loan Amount
+if st.session_state.stage == "loan_amount" and st.session_state.customer:
     c = st.session_state.customer
-    emi = calculate_emi(st.session_state.loan_amount, st.session_state.rate, st.session_state.tenure)
+    st.markdown(f"👤 Customer: **{c['name']}**, Age: **{c['age']}**, City: **{c['city']}**")
+    st.markdown(f"💳 Credit Score: **{c['credit_score']}**, Pre-approved Limit: **₹{c['preapproved_limit']}**")
+    st.session_state.loan_amount = st.number_input("💰 Enter Loan Amount", min_value=10000, max_value=5*10**6, step=5000)
+    if st.button("Next ➡"):
+        st.session_state.stage = "tenure"
+
+# Step 3: Select Tenure
+if st.session_state.stage == "tenure":
+    st.session_state.tenure = st.selectbox("⏳ Select Tenure (Months)", [12, 24, 36, 48, 60])
+    if st.button("Next ➡"):
+        st.session_state.stage = "rate"
+
+# Step 4: Select Interest Rate
+if st.session_state.stage == "rate":
+    st.session_state.rate = st.slider("📈 Select Interest Rate (%)", 8.0, 15.0, 10.0, 0.5)
+    if st.button("Next ➡"):
+        st.session_state.stage = "verification"
+
+# Step 5: Verification Agent
+if st.session_state.stage == "verification":
+    st.success("✅ **Verification Agent:** KYC details verified successfully!")
+    if st.button("Next ➡"):
+        st.session_state.stage = "underwriting"
+
+# Step 6: Underwriting Agent
+if st.session_state.stage == "underwriting":
+    c = st.session_state.customer
+    loan = st.session_state.loan_amount
+    tenure = st.session_state.tenure
+    rate = st.session_state.rate
+    emi = calculate_emi(loan, rate, tenure)
 
     if c["credit_score"] < 700:
-        bot("❌ Loan Rejected: Credit score below 700.")
+        st.error("❌ Loan Rejected: Credit score below 700.")
         st.session_state.stage = "end"
-    elif st.session_state.loan_amount <= c["preapproved_limit"]:
+    elif loan <= c["preapproved_limit"]:
+        st.success(f"✅ Loan Approved instantly! EMI: ₹{int(emi)}")
         st.session_state.approved = True
-        bot(f"✅ Loan Approved instantly! EMI will be approx ₹{int(emi)}")
         st.session_state.stage = "sanction"
-    elif st.session_state.loan_amount <= 2 * c["preapproved_limit"]:
-        bot("📄 Salary slip required. Please upload your salary slip (PDF or image).")
+    elif loan <= 2 * c["preapproved_limit"]:
+        st.info("📄 Salary slip required for approval. Please upload below.")
         st.session_state.stage = "salary"
     else:
-        bot("❌ Loan amount exceeds eligibility limit.")
+        st.error("❌ Loan amount exceeds eligibility limit.")
         st.session_state.stage = "end"
 
-elif st.session_state.stage == "salary":
-    slip = st.file_uploader("Upload your salary slip", type=["pdf", "png", "jpg", "jpeg"])
+# Step 7: Salary Slip Upload
+if st.session_state.stage == "salary":
+    slip = st.file_uploader("📄 Upload Salary Slip (PDF/Image)", type=["pdf", "jpg", "jpeg", "png"])
     if slip:
-        bot("✅ Salary slip uploaded successfully. Evaluating EMI eligibility...")
         c = st.session_state.customer
         emi = calculate_emi(st.session_state.loan_amount, st.session_state.rate, st.session_state.tenure)
-        # assume slip salary is same as customer salary
         if emi <= 0.5 * c["salary"]:
-            bot("✅ Salary verified. Loan Approved!")
+            st.success("✅ Salary verified. Loan Approved!")
             st.session_state.approved = True
-            st.session_state.stage = "sanction"
+            if st.button("Next ➡"):
+                st.session_state.stage = "sanction"
         else:
-            bot("❌ EMI exceeds 50% of salary. Loan Rejected.")
+            st.error("❌ EMI exceeds 50% of salary. Loan Rejected.")
             st.session_state.stage = "end"
 
-elif st.session_state.stage == "sanction":
-    bot("📄 **Sanction Letter Generator:** Preparing your document...")
+# Step 8: Sanction Letter
+if st.session_state.stage == "sanction":
     pdf = generate_sanction_letter(
         st.session_state.customer,
         st.session_state.loan_amount,
@@ -220,10 +221,12 @@ elif st.session_state.stage == "sanction":
         "sanction_letter.pdf",
         "application/pdf"
     )
-    bot("🎉 Congratulations! Your loan journey is complete.")
-    st.session_state.stage = "end"
+    st.success("🎉 Congratulations! Your loan journey is complete.")
+    if st.button("🔁 Start Again"):
+        reset()
 
-elif st.session_state.stage == "end":
-    bot("Do you want to start a new loan journey?")
+# Step 9: End
+if st.session_state.stage == "end":
+    st.info("You can start a new loan journey anytime.")
     if st.button("🔁 Start Again"):
         reset()
